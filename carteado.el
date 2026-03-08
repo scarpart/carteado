@@ -244,7 +244,7 @@
 (defun scpt/carteado/create-card ()
   (interactive)
   (let* ((category (scpt/carteado/create-category))
-	 (card (%ensure-string
+	 (card (ensure-string
 		(read-string "Enter the name of this card: ")
 		"Card name cannot be empty."))
 	 (card-filepath
@@ -257,7 +257,7 @@
 	(if (file-exists-p category-template)
 	    (insert-file-contents category-template))))))
 
-(defun %ensure-string (string errmsg)
+(defun ensure-string (string errmsg)
   (unless (and string (not (string-empty-p string)))
     (error errmsg))
   string)
