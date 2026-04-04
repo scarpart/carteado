@@ -1,8 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 
-(defvar *org-home* "/home/artzmeister/Org/")
-(defvar *scpt/carteado/home* "/home/artzmeister/Org/carteado/")
-(defvar *scpt/carteado/base-template* "/home/artzmeister/.emacs.d/template.org")
+(defvar *org-home* "/Users/arthur.rodrigues/Org/")
+(defvar *scpt/carteado/home* "/Users/arthur.rodrigues/Org/carteado/")
+(defvar *scpt/carteado/base-template* "/Users/arthur.rodrigues/.emacs.d/template.org")
 
 ;(unintern 'easy-button-face)
 ;(unintern 'medium-button-face)
@@ -143,7 +143,7 @@
 (defun scpt/carteado/get-cards-to-show (category)
   (let* ((today (format-time-string "%Y-%m-%d"))
 	 (grep-command
-	  (format "grep -rHoP '#\\+SHOW_NEXT:.*\\K\\d{4}-\\d{2}-\\d{2}' /home/artzmeister/Org/carteado/%s" category))
+	  (format "rg -PoN '#\\+SHOW_NEXT:.*\\K\\d{4}-\\d{2}-\\d{2}' /Users/arthur.rodrigues/Org/carteado/%s" category))
 	 (cards (s-split "\n" (shell-command-to-string grep-command) t))
 	 (acc nil))
     (dolist (card-grep cards (nreverse acc))
@@ -164,7 +164,7 @@
     (cl-labels
 	((header-p (line &optional tag)
 	   (and (string-search (or tag "") line)
-		(s-prefix-p "*" (s-trim line))))
+		(string-match-p "^\\*+ " (s-trim line))))
 	 (get-contents-of-header-by-tag (line lines tag inside-tag-p acc)
 	   (cond
 	    ((null line) acc)
@@ -229,7 +229,7 @@
 	  (or (cdar (cl-remove-if-not
 		     (lambda (x) (string= picked-cat (car x)))
 		     categories))
-	      (expand-file-name picked-cat "/home/artzmeister/Org/carteado/"))))
+	      (expand-file-name picked-cat "/Users/arthur.rodrigues/Org/carteado/"))))
     (scpt/carteado/ensure-filepath cat-filepath)
     (cons picked-cat cat-filepath)))
 
