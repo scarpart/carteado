@@ -18,3 +18,7 @@
 
 (defvar *scpt/carteado/sync/tag* "carteado"
   "Tag applied to all notes created by carteado in Anki.")
+
+(defvar *scpt/carteado/sync/model-name* "Carteado"
+  "Custom Anki note type for bidirectional sync.
+Has fields: Front, Back, OrgFront, OrgBack, SourceFile.")

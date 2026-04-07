@@ -1,8 +1,8 @@
 ;;; -*- lexical-binding: t -*-
 
-(defvar *org-home* "/Users/arthur.rodrigues/Org/")
-(defvar *scpt/carteado/home* "/Users/arthur.rodrigues/Org/carteado/")
-(defvar *scpt/carteado/base-template* "/Users/arthur.rodrigues/.emacs.d/template.org")
+(defvar *org-home* "/home/artzmeister/Org/")
+(defvar *scpt/carteado/home* "/home/artzmeister/Org/carteado/")
+(defvar *scpt/carteado/base-template* "/home/artzmeister/.emacs.d/template.org")
 
 ;(unintern 'easy-button-face)
 ;(unintern 'medium-button-face)
@@ -143,7 +143,7 @@
 (defun scpt/carteado/get-cards-to-show (category)
   (let* ((today (format-time-string "%Y-%m-%d"))
 	 (grep-command
-	  (format "rg -PoN '#\\+SHOW_NEXT:.*\\K\\d{4}-\\d{2}-\\d{2}' /Users/arthur.rodrigues/Org/carteado/%s" category))
+	  (format "rg -PoN '#\\+SHOW_NEXT:.*\\K\\d{4}-\\d{2}-\\d{2}' %s%s" *scpt/carteado/home* category))
 	 (cards (s-split "\n" (shell-command-to-string grep-command) t))
 	 (acc nil))
     (dolist (card-grep cards (nreverse acc))
@@ -155,39 +155,48 @@
 	  (push (cons show-next last-seen) acc))))))
 
 (defun scpt/carteado/get-card-sides (filepath)
-  ;; Gets the contents of the headers tagged with :card_front: and :card_back:, respectively.
-  ;; Returns a cons cell containing the resulting contents trimmed and in order.
-  (let* ((file-string (with-temp-buffer
-			(insert-file-contents filepath)
-			(buffer-string)))
-	 (lines (split-string file-string "\n")))
-    (cl-labels
-	((header-p (line &optional tag)
-	   (and (string-search (or tag "") line)
-		(string-match-p "^\\*+ " (s-trim line))))
-	 (get-contents-of-header-by-tag (line lines tag inside-tag-p acc)
-	   (cond
-	    ((null line) acc)
-	    (inside-tag-p
-	     (if (header-p line)
-		 acc
-	       (get-contents-of-header-by-tag
-		(car lines) (cdr lines) tag inside-tag-p
-		(push line acc))))
-	    ((header-p line tag)
-	     (get-contents-of-header-by-tag
-	      (car lines) (cdr lines) tag t acc))
-	    (t (get-contents-of-header-by-tag
-		(car lines) (cdr lines) tag inside-tag-p acc)))))
-      (cons
-       (->> (get-contents-of-header-by-tag
-	     (car lines) (cdr lines) ":card_front:" nil nil)
-	    (reverse)
-	    (cl-remove-if (lambda (x) (string-empty-p (s-trim x)))))
-       (->> (get-contents-of-header-by-tag
-	      (car lines) (cdr lines) ":card_back:" nil nil)
-	     (reverse)
-	     (cl-remove-if (lambda (x) (string-empty-p (s-trim x)))))))))
+  "Extract Front and Back content from a carteado card at FILEPATH.
+Returns (front-lines . back-lines) where each is a list of non-empty strings.
+Collects all content under the tagged header, including sub-headers, until
+a sibling or parent header is encountered."
+  (let ((lines (with-temp-buffer
+                 (insert-file-contents filepath)
+                 (split-string (buffer-string) "\n"))))
+    (cons (scpt/carteado/get-card-sides--extract lines ":card_front:")
+          (scpt/carteado/get-card-sides--extract lines ":card_back:"))))
+
+(defun scpt/carteado/get-card-sides--header-level (line)
+  "Return the org header level of LINE, or 0 if not a header."
+  (let ((trimmed (s-trim line)))
+    (if (string-match "^\\(\\*+\\) " trimmed)
+        (length (match-string 1 trimmed))
+      0)))
+
+(defun scpt/carteado/get-card-sides--extract (lines tag)
+  "Extract content under the header containing TAG from LINES.
+Collects all lines (including sub-headers) until a header of equal
+or lesser level is found. Returns list of non-empty lines."
+  (let ((collecting nil)
+        (level nil)
+        (acc nil))
+    (dolist (line lines)
+      (let ((trimmed (s-trim line)))
+        (cond
+         ;; Currently collecting content under the tagged header
+         (collecting
+          (let ((line-level (scpt/carteado/get-card-sides--header-level line)))
+            (if (and (> line-level 0) (<= line-level level))
+                ;; Hit a sibling or parent header -- stop collecting
+                (setq collecting nil)
+              ;; Content line or sub-header -- collect it
+              (push line acc))))
+         ;; Found the tagged header -- start collecting
+         ((and (> (scpt/carteado/get-card-sides--header-level line) 0)
+               (string-search tag trimmed))
+          (setq collecting t
+                level (scpt/carteado/get-card-sides--header-level line))))))
+    (cl-remove-if (lambda (x) (string-empty-p (s-trim x)))
+                  (nreverse acc))))
 
 (defun scpt/carteado/replace-text (start end replacement)
   (delete-region start end)
@@ -229,7 +238,7 @@
 	  (or (cdar (cl-remove-if-not
 		     (lambda (x) (string= picked-cat (car x)))
 		     categories))
-	      (expand-file-name picked-cat "/Users/arthur.rodrigues/Org/carteado/"))))
+	      (expand-file-name picked-cat *scpt/carteado/home*))))
     (scpt/carteado/ensure-filepath cat-filepath)
     (cons picked-cat cat-filepath)))
 
